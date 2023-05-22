@@ -37,10 +37,10 @@ def run():
     )
     st.title("LangChain Chatbot")
 
-    db_user = 'postgres'
-    db_password = 'jiaming1234'
-    db_host = 'localhost:5432'
-    db_name = 'jming_DB'
+    db_user = ''
+    db_password = ''
+    db_host = ''
+    db_name = ''
     db = SQLDatabase.from_uri(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}/{db_name}')
 
     chat_placeholder = st.container()
