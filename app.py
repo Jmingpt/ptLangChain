@@ -1,24 +1,14 @@
 import os
+import pandas as pd
 import streamlit as st
 from streamlit_chat import message
-import pandas as pd
-import openai
 from langchain.sql_database import SQLDatabase
 from langchain.chains import (
-    LLMChain,
-    ConversationChain,
-    SimpleSequentialChain,
-    ConversationalRetrievalChain,
     SQLDatabaseChain,
     SQLDatabaseSequentialChain
 )
 from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.prompts import PromptTemplate
-
-# os.environ['OPENAI_API_TOKEN'] = st.secrets['OPENAI_API_KEY']
-# openai.api_key = st.secrets['OPENAI_API_KEY']
+from sqlalchemy import create_engine
 
 if 'generated' not in st.session_state:
     st.session_state['generated'] = []
@@ -37,10 +27,10 @@ def run():
     )
     st.title("LangChain Chatbot")
 
-    db_user = ''
-    db_password = ''
-    db_host = ''
-    db_name = ''
+    db_user = 'postgres'
+    db_password = 'jiaming1234'
+    db_host = 'localhost:5432'
+    db_name = 'edm_my'  # 'jming_DB'
     db = SQLDatabase.from_uri(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}/{db_name}')
 
     chat_placeholder = st.container()
@@ -60,22 +50,33 @@ def run():
             ),
             db=db,
             verbose=True,
-            # use_query_checker=True,
             return_intermediate_steps=True,
         )
-
-        # result = chain(
-        #     {
-        #         "question": user_input,
-        #         "chat_history": st.session_state['history']
-        #     }
-        # )
-        # st.session_state['history'].append((user_input, result))
 
         result = chain(user_input)
         st.session_state['past'].append(user_input)
         st.session_state['generated'].append(result['result'])
-        st.code(result['intermediate_steps'][2]['sql_cmd'], language='sql')
+        query = result['intermediate_steps'][2]['sql_cmd']
+        st.code(query, language='sql')
+
+        if query is not None:
+            conn_string = f'postgresql://{db_user}:{db_password}@{db_host}/{db_name}'
+            db = create_engine(conn_string)
+            conn = db.connect()
+
+            df = pd.read_sql(query, conn)
+            st.dataframe(
+                data=df,
+                use_container_width=True,
+                hide_index=True
+            )
+            encoded_data = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label='Download data as .csv',
+                data=encoded_data,
+                file_name='results.csv',
+                mime='text/csv'
+            )
 
     if st.session_state["generated"]:
         with chat_placeholder:
